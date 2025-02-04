@@ -1,0 +1,10 @@
+[
+    {
+        "Address": "Your evm address 1",
+        "deviceHash": "Your device hash 1"
+    },
+    {
+        "Address": "Your evm address 2",
+        "deviceHash": "Your device hash 2"
+    }
+]
