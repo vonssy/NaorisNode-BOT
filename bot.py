@@ -227,9 +227,9 @@ class NaorisProtocol:
                 
                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Add to Whitelist Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def toggle_activated(self, address: str, device_hash: int, proxy=None, retries=5):
+    async def toggle_activated(self, address: str, state: str, device_hash: int, proxy=None, retries=5):
         url = "https://naorisprotocol.network/sec-api/api/toggle"
-        data = json.dumps({"walletAddress":address, "state":"ON", "deviceHash":device_hash})
+        data = json.dumps({"walletAddress":address, "state":state, "deviceHash":device_hash})
         headers = {
             **self.headers,
             "Content-Length": str(len(data)),
@@ -239,10 +239,7 @@ class NaorisProtocol:
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="safari15_5")
                 response.raise_for_status()
-                result = response.text
-                if result.strip() in ["Session started", "No action needed"]:
-                    return True
-                return None
+                return response.text
             except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
@@ -324,17 +321,18 @@ class NaorisProtocol:
         whitelist = await self.add_whitelisted(address, token, use_proxy, proxy)
         if whitelist and whitelist.get("message") == "url saved successfully":
             self.print_message(address, proxy, Fore.GREEN, "Add to Whitelist Success")
-        
-        activate = None
-        while activate is None:
-            activate = await self.toggle_activated(address, device_hash, proxy)
-            if not activate:
-                proxy = self.rotate_proxy_for_account(address) if use_proxy else None
-                await asyncio.sleep(5)
-                continue
 
-            self.print_message(address, proxy, Fore.GREEN, "Turn On Protection Success")
-            return activate
+        while True:
+            deactivate = await self.toggle_activated(address, "OFF", device_hash, proxy)
+            if deactivate and deactivate.strip() == "No action needed":
+                activate = await self.toggle_activated(address, "ON", device_hash, proxy)
+                if activate and activate.strip() == "Session started":
+                    self.print_message(address, proxy, Fore.GREEN, "Turn On Protection Success")
+                    return True
+                else:
+                    continue
+            else:
+                continue
 
     async def process_send_heatbeats(self, address, device_hash, token, use_proxy):
         while True:

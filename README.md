@@ -16,6 +16,8 @@ Naoris Node Protocol BOT
   - Auto Send Ping Every 25 Seconds
   - Multi Accounts With Threads
 
+- Note: Points Not Increase? pending bruh. please be patient.
+
 ## Requiremnets
 
 - Make sure you have Python3.9 or higher installed and pip.
