@@ -247,22 +247,53 @@ class NaorisProtocol:
         
                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Turn On Protection Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def send_heartbeats(self, address: str, device_hash: int, token: str, use_proxy: bool, proxy=None, retries=5):
-        url = "https://naorisprotocol.network/sec-api/api/produce-to-kafka"
-        data = json.dumps({"topic":"device-heartbeat", "inputData":{"walletAddress":address, "deviceHash":device_hash}})
+    # async def send_heartbeats(self, address: str, device_hash: int, token: str, use_proxy: bool, proxy=None, retries=5):
+    #     url = "https://naorisprotocol.network/sec-api/api/produce-to-kafka"
+    #     data = json.dumps({"topic":"device-heartbeat", "inputData":{"walletAddress":address, "deviceHash":device_hash}})
+    #     headers = {
+    #         **self.headers,
+    #         "Authorization": f"Bearer {token}",
+    #         "Content-Length": str(len(data)),
+    #         "Content-Type": "application/json"
+    #     }
+    #     for attempt in range(retries):
+    #         try:
+    #             response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="safari15_5")
+    #             if response.status_code == 401:
+    #                 token = await self.process_get_access_token(address, use_proxy)
+    #                 headers["Authorization"] = f"Bearer {token}"
+    #                 continue
+
+    #             response.raise_for_status()
+    #             return response.json()
+    #         except Exception as e:
+    #             if attempt < retries - 1:
+    #                 await asyncio.sleep(5)
+    #                 continue
+                
+    #             if "502" in str(e):
+    #                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}Server Down")
+                
+    #             self.rotate_proxy_for_account(address) if use_proxy else None
+    #             return self.print_message(self.mask_account(address), proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+            
+    async def send_heartbeats(self, address: str, token: str, use_proxy: bool, proxy=None, retries=5):
+        url = "https://beat.naorisprotocol.network/api/ping"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {token}",
-            "Content-Length": str(len(data)),
+            "Content-Length": "2",
             "Content-Type": "application/json"
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="safari15_5")
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="safari15_5")
                 if response.status_code == 401:
                     token = await self.process_get_access_token(address, use_proxy)
                     headers["Authorization"] = f"Bearer {token}"
                     continue
+                elif response.status_code == 410:
+                    return self.print_message(self.mask_account(address), proxy, Fore.GREEN, f"{response.text}")
 
                 response.raise_for_status()
                 return response.json()
@@ -334,15 +365,15 @@ class NaorisProtocol:
             else:
                 continue
 
-    async def process_send_heatbeats(self, address, device_hash, token, use_proxy):
+    async def process_send_heatbeats(self, address, token, use_proxy):
         while True:
             proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-            heartbeat = await self.send_heartbeats(address, device_hash, token, use_proxy, proxy)
-            if heartbeat and heartbeat.get("message") == "Message production initiated":
+            heartbeat = await self.send_heartbeats(address, token, use_proxy, proxy)
+            if heartbeat:
                 self.print_message(address, proxy, Fore.GREEN, "PING Success")
 
-            await asyncio.sleep(25)
+            await asyncio.sleep(10)
 
     async def process_accounts(self, address: str, device_hash: int, use_proxy: bool):
         token = await self.process_get_access_token(address, use_proxy)
@@ -353,7 +384,7 @@ class NaorisProtocol:
 
             activate = await self.process_activate_toggle(address, device_hash, token, use_proxy)
             if activate:
-                tasks.append(asyncio.create_task(self.process_send_heatbeats(address, device_hash, token, use_proxy)))
+                tasks.append(asyncio.create_task(self.process_send_heatbeats(address, token, use_proxy)))
 
             await asyncio.gather(*tasks)
 
