@@ -2,7 +2,7 @@ from curl_cffi import requests
 from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
-import asyncio, time, json, os, pytz
+import asyncio, json, os, pytz
 
 wib = pytz.timezone('Asia/Jakarta')
 
