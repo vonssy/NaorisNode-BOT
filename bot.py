@@ -18,12 +18,13 @@ class NaorisProtocol:
             "Sec-Fetch-Storage-Access": "active",
             "User-Agent": FakeUserAgent().random
         }
-        self.BASE_API = "https://naorisprotocol.network/sec-api"
-        self.PING_API = "https://beat.naorisprotocol.network/api/ping"
+        self.BASE_API = "https://naorisprotocol.network"
+        self.PING_API = "https://beat.naorisprotocol.network"
         self.proxies = []
         self.proxy_index = 0
         self.account_proxies = {}
         self.access_tokens = {}
+        self.refresh_tokens = {}
 
     def clear_terminal(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -156,8 +157,8 @@ class NaorisProtocol:
             except ValueError:
                 print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2 or 3).{Style.RESET_ALL}")
 
-    async def generate_tokens(self, address: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/auth/generateToken"
+    async def generate_token(self, address: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/sec-api/auth/gt-event"
         data = json.dumps({"wallet_address":address})
         headers = {
             **self.headers,
@@ -168,18 +169,42 @@ class NaorisProtocol:
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
                 if response.status_code == 404:
-                    return self.print_message(self.mask_account(address), proxy, Fore.RED, f"GET Access Token Failed: {Fore.YELLOW+Style.BRIGHT}Join Testnet & Complete Required Tasks First")
+                    return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Generate Token Failed: {Fore.YELLOW+Style.BRIGHT}Join Testnet & Complete Required Tasks First")
+                
                 response.raise_for_status()
-                result = response.json()
-                return result["token"]
+                return response.json()
             except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(self.mask_account(address), proxy, Fore.RED, f"GET Access Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Generate Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+    
+    async def refresh_token(self, address: str, use_proxy: bool, proxy=None, retries=5):
+        url = f"{self.BASE_API}/sec-api/auth/refresh"
+        data = json.dumps({"refreshToken":self.refresh_tokens[address]})
+        headers = {
+            **self.headers,
+            "Content-Length": str(len(data)),
+            "Content-Type": "application/json"
+        }
+        for attempt in range(retries):
+            try:
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
+                if response.status_code == 401:
+                    await self.process_generate_token(address, use_proxy)
+                    data = json.dumps({"refreshToken":self.refresh_tokens[address]})
+                    continue
+                
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Refreshing Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
             
-    async def wallet_details(self, address: str, use_proxy: bool, proxy=None, retries=5):
-        url = f"{self.BASE_API}/api/wallet-details"
+    async def wallet_details(self, address: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/sec-api/api/wallet-details"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {self.access_tokens[address]}"
@@ -187,10 +212,6 @@ class NaorisProtocol:
         for attempt in range(retries):
             try:
                 response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxy=proxy, timeout=60, impersonate="chrome110")
-                if response.status_code == 401:
-                    await self.process_generate_tokens(address, use_proxy)
-                    headers["Authorization"] = f"Bearer {self.access_tokens[address]}"
-                    continue
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -199,8 +220,8 @@ class NaorisProtocol:
                     continue
                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"GET Wallet Details Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def add_whitelist(self, address: str, use_proxy: bool, proxy=None, retries=5):
-        url = f"{self.BASE_API}/api/addWhitelist"
+    async def add_whitelist(self, address: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/sec-api/api/addWhitelist"
         data = json.dumps({"walletAddress":address, "url":"naorisprotocol.network"})
         headers = {
             **self.headers,
@@ -211,12 +232,9 @@ class NaorisProtocol:
         for attempt in range(retries):
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
-                if response.status_code == 401:
-                    await self.process_generate_tokens(address, use_proxy)
-                    headers["Authorization"] = f"Bearer {self.access_tokens[address]}"
-                    continue
-                elif response.status_code == 409:
+                if response.status_code == 409:
                     return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Add to Whitelist Failed: {Fore.YELLOW+Style.BRIGHT}URL Already Exists In Whitelist")
+                
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -225,8 +243,8 @@ class NaorisProtocol:
                     continue
                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Add to Whitelist Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def toggle_activation(self, address: str, state: str, device_hash: int, use_proxy: bool, proxy=None, retries=5):
-        url = f"{self.BASE_API}/api/switch"
+    async def toggle_activation(self, address: str, device_hash: int, state: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/sec-api/api/switch"
         data = json.dumps({"walletAddress":address, "state":state, "deviceHash":device_hash})
         headers = {
             **self.headers,
@@ -237,10 +255,6 @@ class NaorisProtocol:
         for attempt in range(retries):
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
-                if response.status_code == 401:
-                    await self.process_generate_tokens(address, use_proxy)
-                    headers["Authorization"] = f"Bearer {self.access_tokens[address]}"
-                    continue
                 response.raise_for_status()
                 return response.text
             except Exception as e:
@@ -249,7 +263,28 @@ class NaorisProtocol:
                     continue
                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Turn On Protection Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def perform_ping(self, address: str, use_proxy: bool, proxy=None, retries=5):
+    async def initiate_msg_product(self, address: str, device_hash: int, proxy=None, retries=5):
+        url = f"{self.PING_API}/sec-api/api/htb-event"
+        data = json.dumps({"inputData":{"walletAddress":address, "deviceHash":device_hash}})
+        headers = {
+            **self.headers,
+            "Authorization": f"Bearer {self.access_tokens[address]}",
+            "Content-Length": str(len(data)),
+            "Content-Type": "application/json"
+        }
+        for attempt in range(retries):
+            try:
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return self.print_message(self.mask_account(address), proxy, Fore.RED, f"Initiate Message Production Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+    
+    async def perform_ping(self, address: str, proxy=None, retries=5):
+        url = f"{self.PING_API}/api/ping"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {self.access_tokens[address]}",
@@ -258,12 +293,8 @@ class NaorisProtocol:
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(requests.post, url=self.PING_API, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="chrome110")
-                if response.status_code == 401:
-                    await self.process_generate_tokens(address, use_proxy)
-                    headers["Authorization"] = f"Bearer {self.access_tokens[address]}"
-                    continue
-                elif response.status_code == 410:
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="chrome110")
+                if response.status_code == 410:
                     return response.text
                 response.raise_for_status()
                 return response.text
@@ -273,27 +304,46 @@ class NaorisProtocol:
                     continue
                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
 
-    async def process_generate_tokens(self, address: str, use_proxy: bool):
+    async def process_generate_token(self, address: str, use_proxy: bool):
         proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-        access_token = None
-        while access_token is None:
-            access_token = await self.generate_tokens(address, proxy)
-            if not access_token:
+        token = None
+        while token is None:
+            token = await self.generate_token(address, proxy)
+            if not token:
                 await asyncio.sleep(5)
                 proxy = self.rotate_proxy_for_account(address) if use_proxy else None
                 continue
             
-            self.access_tokens[address] = access_token
+            self.access_tokens[address] = token["token"]
+            self.refresh_tokens[address] = token["refreshToken"]
 
-            self.print_message(address, proxy, Fore.GREEN, "GET Access Token Success")
+            self.print_message(address, proxy, Fore.GREEN, "Generate Token Success")
 
-            return self.access_tokens[address]
+            return self.access_tokens[address], self.refresh_tokens[address]
+
+    async def process_refresh_token(self, address: str, use_proxy: bool):
+        while True:
+            await asyncio.sleep(30 * 60)
+            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+
+            token = None
+            while token is None:
+                token = await self.refresh_token(address, use_proxy, proxy)
+                if not token:
+                    await asyncio.sleep(5)
+                    proxy = self.rotate_proxy_for_account(address) if use_proxy else None
+                    continue
+                
+                self.access_tokens[address] = token["token"]
+                self.refresh_tokens[address] = token["refreshToken"]
+
+                self.print_message(address, proxy, Fore.GREEN, "Refreshing Token Success")
 
     async def process_add_whitelist(self, address: str, use_proxy: bool):
         proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-        whitelist = await self.add_whitelist(address, use_proxy, proxy)
+        whitelist = await self.add_whitelist(address, proxy)
         if whitelist and whitelist.get("message") == "url saved successfully":
             self.print_message(address, proxy, Fore.GREEN, "Add to Whitelist Success")
 
@@ -307,51 +357,59 @@ class NaorisProtocol:
 
             total_earning = "N/A"
 
-            wallet = await self.wallet_details(address, use_proxy, proxy)
+            wallet = await self.wallet_details(address, proxy)
             if wallet:
                 total_earning = wallet.get("message", {}).get("totalEarnings", 0)
 
             self.print_message(address, proxy, Fore.WHITE, f"Earning Total: {total_earning} PTS")
 
-            await asyncio.sleep(10 * 60)
-        
+            await asyncio.sleep(15 * 60)
+    
     async def process_send_ping(self, address: str, use_proxy: bool):
-        proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+        while True:
+            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-        ping = await self.perform_ping(address, use_proxy, proxy)
-        if ping and ping.strip() == "Ping Success!!":
-            self.print_message(address, proxy, Fore.GREEN, "PING Success")
+            ping = await self.perform_ping(address, proxy)
+            if ping and ping.strip() == "Ping Success!!":
+                self.print_message(address, proxy, Fore.GREEN, "PING Success")
 
-        return True
+            await asyncio.sleep(10)
         
+    async def process_initiate_msg_product(self, address: str, device_hash: int, use_proxy: bool):
+        while True:
+            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+
+            initiate = await self.initiate_msg_product(address, device_hash, proxy)
+            if initiate and initiate.get("message") == "Message production initiated":
+                self.print_message(address, proxy, Fore.GREEN, "Message Production Initiated")
+
+            await asyncio.sleep(10 * 60)
+    
     async def process_activate_toggle(self, address, device_hash, use_proxy):
         while True:
             proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-            deactivate = await self.toggle_activation(address, "OFF", device_hash, proxy)
+            deactivate = await self.toggle_activation(address, device_hash, "OFF", proxy)
             if deactivate and deactivate.strip() in ["Session ended and daily usage updated", "No action needed"]:
-                activate = await self.toggle_activation(address, "ON", device_hash, proxy)
+                activate = await self.toggle_activation(address, device_hash, "ON", proxy)
                 if activate and activate.strip() == "Session started":
                     self.print_message(address, proxy, Fore.GREEN, "Turn On Protection Success")
 
-                    reconnect_time = int(time.time()) + 86400
-
-                    while True:
-                        if reconnect_time - int(time.time()) <= 0:
-                            self.print_message(address, proxy, Fore.YELLOW, "Reconnecting Node...")
-                            break
-
-                        await self.process_send_ping(address, use_proxy)
-                        await asyncio.sleep(10)
+                    tasks = [
+                        asyncio.create_task(self.process_initiate_msg_product(address, device_hash, use_proxy)),
+                        asyncio.create_task(self.process_send_ping(address, use_proxy))
+                    ]
+                    await asyncio.gather(*tasks)
                 else:
                     continue
             else:
                 continue
         
     async def process_accounts(self, address: str, device_hash: int, use_proxy: bool):
-        self.access_tokens[address] = await self.process_generate_tokens(address, use_proxy)
-        if self.access_tokens[address]:
+        self.access_tokens[address], self.refresh_tokens[address]= await self.process_generate_token(address, use_proxy)
+        if self.access_tokens[address] and self.refresh_tokens[address]:
             tasks = [
+                asyncio.create_task(self.process_refresh_token(address, use_proxy)),
                 asyncio.create_task(self.process_get_wallet_details(address, use_proxy)),
                 asyncio.create_task(self.process_activate_toggle(address, device_hash, use_proxy))
             ]
