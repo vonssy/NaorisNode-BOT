@@ -4,16 +4,19 @@ Naoris Node Protocol BOT
 - Register Here : [Naoris Protocol Testnet](https://naorisprotocol.network/testnet)
 - Dwonload Wallet: [Naoris Protocol Wallet](https://chromewebstore.google.com/detail/naoris-protocol-wallet/dbgibbbeebmbmmhmebogidfbfehejgfo)
 - Dwonload Extension: [Naoris Protocol Browser Security Node](https://chromewebstore.google.com/detail/naoris-protocol-browser-s/cpikalnagknmlfhnilhfelifgbollmmp)
-- Use Code: TRASzfGgEMFGHj9K
+- Use Code `TRASzfGgEMFGHj9K`
 
 ## Features
 
   - Auto Get Account Information
-  - Auto Run With [Monosans](https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt) Proxy - Choose 1
-  - Auto Run With Private Proxy - Choose 2
-  - Auto Run Without Proxy - Choose 3
-  - Auto Add to Whitelist
-  - Auto Send Ping Every 25 Seconds
+  - Auto Run With [Monosans](https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt) Proxy - `Choose 1`
+  - Auto Run With Private Proxy - `Choose 2`
+  - Auto Run Without Proxy - `Choose 3`
+  - Auto Rotate Invalid Proxies - `y` or `n`
+  - Auto Add to Whitelisted
+  - Auto Activating Protection
+  - Auto Send Ping Every 10 Seconds
+  - Auto Send Initiate Message Production Every 10 Minutes
   - Multi Accounts With Threads
 
 - Note: Points Not Increase? pending bruh. please be patient.
@@ -42,22 +45,21 @@ Naoris Node Protocol BOT
 ### Screenshots
 
 <div style="text-align: center;">
-  <h4><strong>Device Hash</strong></h4>
-  <img src="image.jpg" alt="Image" width="500"/>
+  <img src="image.png" alt="Image" width="500"/>
 </div>
 
 - **accounts.json:** You will find the file `accounts.json` inside the project directory. Make sure `accounts.json` contains data that matches the format expected by the script. Here are examples of file formats:
-  ```bash
-  [
-      {
-          "Address": "Your evm address 1",
-          "deviceHash": "Your device hash 1"
-      },
-      {
-          "Address": "Your evm address 2",
-          "deviceHash": "Your device hash 2"
-      }
-  ]
+  ```json
+    [
+        {
+            "Address": "your_naoris_wallet_address_1",
+            "deviceHash": "your_device_hash"
+        },
+        {
+            "Address": "your_naoris_wallet_address_2",
+            "deviceHash": "your_device_hash"
+        }
+    ]
   ```
 
 - **proxy.txt:** You will find the file `proxy.txt` inside the project directory. Make sure `proxy.txt` contains data that matches the format expected by the script. Here are examples of file formats:
