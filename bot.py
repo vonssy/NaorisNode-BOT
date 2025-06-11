@@ -169,7 +169,7 @@ class NaorisProtocol:
                     print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter 'y' or 'n'.{Style.RESET_ALL}")
 
         return choose, rotate
-
+    
     async def generate_token(self, address: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/sec-api/auth/gt-event"
         data = json.dumps({"wallet_address":address})
@@ -182,14 +182,17 @@ class NaorisProtocol:
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110", verify=False)
                 if response.status_code == 404:
-                    return self.print_message(address, proxy, Fore.RED, f"Generate Token Failed: {Fore.YELLOW+Style.BRIGHT}Join Testnet & Complete Required Tasks First")
+                    self.print_message(address, proxy, Fore.RED, f"Generate Token Failed: {Fore.YELLOW+Style.BRIGHT}Join Testnet & Complete Required Tasks First")
+                    return None
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, proxy, Fore.RED, f"Generate Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, proxy, Fore.RED, f"Generate Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
     
     async def refresh_token(self, address: str, use_proxy: bool, rotate_proxy: bool, proxy=None, retries=5):
         url = f"{self.BASE_API}/sec-api/auth/refresh"
@@ -212,7 +215,9 @@ class NaorisProtocol:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, proxy, Fore.RED, f"Refreshing Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, proxy, Fore.RED, f"Refreshing Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
             
     async def wallet_details(self, address: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/sec-api/api/wallet-details"
@@ -229,7 +234,9 @@ class NaorisProtocol:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, proxy, Fore.RED, f"GET Wallet Details Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, proxy, Fore.RED, f"GET Wallet Details Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
     
     async def add_whitelist(self, address: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/sec-api/api/addWhitelist"
@@ -244,14 +251,17 @@ class NaorisProtocol:
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110", verify=False)
                 if response.status_code == 409:
-                    return self.print_message(address, proxy, Fore.RED, f"Add to Whitelist Failed: {Fore.YELLOW+Style.BRIGHT}URL Already Exists In Whitelist")
+                    self.print_message(address, proxy, Fore.RED, f"Add to Whitelist Failed: {Fore.YELLOW+Style.BRIGHT}URL Already Exists In Whitelist")
+                    return None
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, proxy, Fore.RED, f"Add to Whitelist Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, proxy, Fore.RED, f"Add to Whitelist Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
     
     async def toggle_activation(self, address: str, device_hash: int, state: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/sec-api/api/switch"
@@ -271,12 +281,14 @@ class NaorisProtocol:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, proxy, Fore.BLUE, "Device Hash"
+                self.print_message(address, proxy, Fore.BLUE, "Device Hash"
                     f"{Fore.WHITE + Style.BRIGHT} {device_hash} {Style.RESET_ALL}"
                     f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
                     f"{Fore.RED + Style.BRIGHT} Activate Protection Failed: {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
                 )
+
+        return None
     
     async def initiate_msg_product(self, address: str, device_hash: int, proxy=None, retries=5):
         url = f"{self.PING_API}/sec-api/api/htb-event"
@@ -296,12 +308,14 @@ class NaorisProtocol:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, proxy, Fore.BLUE, "Device Hash"
+                self.print_message(address, proxy, Fore.BLUE, "Device Hash"
                     f"{Fore.WHITE + Style.BRIGHT} {device_hash} {Style.RESET_ALL}"
                     f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
                     f"{Fore.RED + Style.BRIGHT} Initiate Production Message Failed: {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
                 )
+
+        return None
     
     async def perform_ping(self, address: str, device_hash: int, proxy=None, retries=5):
         url = f"{self.PING_API}/api/ping"
@@ -322,58 +336,48 @@ class NaorisProtocol:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, proxy, Fore.BLUE, "Device Hash"
+                self.print_message(address, proxy, Fore.BLUE, "Device Hash"
                     f"{Fore.WHITE + Style.BRIGHT} {device_hash} {Style.RESET_ALL}"
                     f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
                     f"{Fore.RED + Style.BRIGHT} PING Failed: {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
                 )
+
+        return None
         
     async def process_generate_token(self, address: str, use_proxy: bool, rotate_proxy: bool):
-        proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+        while True:
+            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-        if rotate_proxy:
-            while True:
-                token = await self.generate_token(address, proxy)
-                if not token:
-                    proxy = self.rotate_proxy_for_account(address) if use_proxy else None
-                    await asyncio.sleep(5)
-                    continue
-                
+            token = await self.generate_token(address, proxy)
+            if token:
                 self.access_tokens[address] = token["token"]
                 self.refresh_tokens[address] = token["refreshToken"]
 
                 self.print_message(address, proxy, Fore.GREEN, "Generate Token Success")
                 return True
-
-        while True:
-            token = await self.generate_token(address, proxy)
-            if not token:
-                await asyncio.sleep(5)
-                continue
             
-            self.access_tokens[address] = token["token"]
-            self.refresh_tokens[address] = token["refreshToken"]
+            if rotate_proxy:
+                proxy = self.rotate_proxy_for_account(address)
 
-            self.print_message(address, proxy, Fore.GREEN, "Generate Token Success")
-            return True
+            await asyncio.sleep(5)
+            continue
 
     async def process_refresh_token(self, address: str, use_proxy: bool, rotate_proxy: bool):
         while True:
             await asyncio.sleep(30 * 60)
             proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-            while True:
-                token = await self.refresh_token(address, use_proxy, rotate_proxy, proxy)
-                if not token:
-                    await asyncio.sleep(5)
-                    continue
-                
+            token = await self.refresh_token(address, use_proxy, rotate_proxy, proxy)
+            if token:
                 self.access_tokens[address] = token["token"]
                 self.refresh_tokens[address] = token["refreshToken"]
 
                 self.print_message(address, proxy, Fore.GREEN, "Refreshing Token Success")
                 return True
+
+            await asyncio.sleep(5)
+            continue
 
     async def process_add_whitelist(self, address: str, use_proxy: bool):
         proxy = self.get_next_proxy_for_account(address) if use_proxy else None
@@ -398,36 +402,25 @@ class NaorisProtocol:
 
             await asyncio.sleep(15 * 60)
 
-    async def process_deactivate_toggle(self, address: str, device_hash: int, use_proxy: bool, rotate_proxy: bool):
+    async def process_deactivate_toggle(self, address: str, device_hash: int, use_proxy: bool):
         while True:
             proxy = self.get_next_proxy_for_account(device_hash) if use_proxy else None
 
             deactivate = await self.toggle_activation(address, device_hash, "OFF", proxy)
-            if not deactivate:
-                if rotate_proxy:
-                    proxy = self.rotate_proxy_for_account(device_hash)
-
-                await asyncio.sleep(5)
-                continue
-
-            if deactivate.strip() in ["Session ended and daily usage updated", "No action needed"]:
+            if deactivate and deactivate.strip() in ["Session ended and daily usage updated", "No action needed"]:
                 return True
-                
+        
             await asyncio.sleep(5)
             continue
 
-    async def process_activate_toggle(self, address: str, device_hash: int, use_proxy: bool, rotate_proxy: bool):
-        deactivated = await self.process_deactivate_toggle(address, device_hash, use_proxy, rotate_proxy)
+    async def process_activate_toggle(self, address: str, device_hash: int, use_proxy: bool):
+        deactivated = await self.process_deactivate_toggle(address, device_hash, use_proxy)
         if deactivated:
             while True:
                 proxy = self.get_next_proxy_for_account(device_hash) if use_proxy else None
 
                 activate = await self.toggle_activation(address, device_hash, "ON", proxy)
-                if not activate:
-                    await asyncio.sleep(5)
-                    continue
-
-                if activate.strip() == "Session started":
+                if activate and activate.strip() == "Session started":
                     self.print_message(address, proxy, Fore.BLUE, "Device Hash "
                         f"{Fore.WHITE + Style.BRIGHT}{device_hash}{Style.RESET_ALL}"
                         f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
@@ -435,8 +428,8 @@ class NaorisProtocol:
                     )
                     return True
                 
+                await self.process_deactivate_toggle(address, device_hash, use_proxy)
                 await asyncio.sleep(5)
-                await self.process_deactivate_toggle(address, device_hash, use_proxy, rotate_proxy)
                 continue
 
     async def process_send_ping(self, address: str, device_hash: int, use_proxy: bool):
@@ -454,7 +447,6 @@ class NaorisProtocol:
 
     async def process_initiate_msg_product(self, address: str, device_hash: int, use_proxy: bool):
         while True:
-            await asyncio.sleep(10 * 60)
             proxy = self.get_next_proxy_for_account(device_hash) if use_proxy else None
 
             initiate = await self.initiate_msg_product(address, device_hash, proxy)
@@ -464,12 +456,21 @@ class NaorisProtocol:
                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                     f"{Fore.GREEN + Style.BRIGHT}Production Message Initiated Successfully{Style.RESET_ALL}"
                 )
+                return True
+            
+            await asyncio.sleep(5)
+            continue
 
-    async def process_perform_ping(self, address: str, device_hash: int, use_proxy: bool, rotate_proxy: bool):
-        activated = await self.process_activate_toggle(address, device_hash, use_proxy, rotate_proxy)
+    async def looping_initiate_msg_product(self, address: str, device_hash: int, use_proxy: bool):
+        while True:
+            await asyncio.sleep(10 * 60)
+            await self.process_initiate_msg_product(address, device_hash, use_proxy)
+
+    async def process_perform_ping(self, address: str, device_hash: int, use_proxy: bool):
+        activated = await self.process_activate_toggle(address, device_hash, use_proxy)
         if activated:
             tasks = [
-                asyncio.create_task(self.process_initiate_msg_product(address, device_hash, use_proxy)),
+                asyncio.create_task(self.looping_initiate_msg_product(address, device_hash, use_proxy)),
                 asyncio.create_task(self.process_send_ping(address, device_hash, use_proxy)),
             ]
             await asyncio.gather(*tasks)
@@ -480,7 +481,7 @@ class NaorisProtocol:
             tasks = [
                 asyncio.create_task(self.process_refresh_token(address, use_proxy, rotate_proxy)),
                 asyncio.create_task(self.process_get_wallet_details(address, use_proxy)),
-                asyncio.create_task(self.process_perform_ping(address, device_hash, use_proxy, rotate_proxy))
+                asyncio.create_task(self.process_perform_ping(address, device_hash, use_proxy))
             ]
             await asyncio.gather(*tasks)
 
@@ -510,12 +511,20 @@ class NaorisProtocol:
             self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*65)
 
             tasks = []
-            for account in accounts:
+            for idx, account in enumerate(accounts, start=1):
                 if account:
                     address = account["Address"].lower()
                     device_hash = int(account["deviceHash"])
 
                     if not address or not device_hash:
+                        self.log(
+                            f"{Fore.CYAN + Style.BRIGHT}[ Account: {Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT}{idx}{Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}Status:{Style.RESET_ALL}"
+                            f"{Fore.RED + Style.BRIGHT} Invalid Account Data {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}]{Style.RESET_ALL}"
+                        )
                         continue
 
                     tasks.append(asyncio.create_task(self.process_accounts(address, device_hash, use_proxy, rotate_proxy)))
