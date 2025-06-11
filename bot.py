@@ -404,7 +404,7 @@ class NaorisProtocol:
 
     async def process_deactivate_toggle(self, address: str, device_hash: int, use_proxy: bool):
         while True:
-            proxy = self.get_next_proxy_for_account(device_hash) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
             deactivate = await self.toggle_activation(address, device_hash, "OFF", proxy)
             if deactivate and deactivate.strip() in ["Session ended and daily usage updated", "No action needed"]:
@@ -417,7 +417,7 @@ class NaorisProtocol:
         deactivated = await self.process_deactivate_toggle(address, device_hash, use_proxy)
         if deactivated:
             while True:
-                proxy = self.get_next_proxy_for_account(device_hash) if use_proxy else None
+                proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
                 activate = await self.toggle_activation(address, device_hash, "ON", proxy)
                 if activate and activate.strip() == "Session started":
@@ -435,7 +435,7 @@ class NaorisProtocol:
     async def process_send_ping(self, address: str, device_hash: int, use_proxy: bool):
         while True:
             await asyncio.sleep(10)
-            proxy = self.get_next_proxy_for_account(device_hash) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
             ping = await self.perform_ping(address, device_hash, proxy)
             if ping and ping.strip() == "Ping Success!!":
@@ -447,7 +447,7 @@ class NaorisProtocol:
 
     async def process_initiate_msg_product(self, address: str, device_hash: int, use_proxy: bool):
         while True:
-            proxy = self.get_next_proxy_for_account(device_hash) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
             initiate = await self.initiate_msg_product(address, device_hash, proxy)
             if initiate:
