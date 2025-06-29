@@ -368,16 +368,17 @@ class NaorisProtocol:
             await asyncio.sleep(30 * 60)
             proxy = self.get_next_proxy_for_account(address) if use_proxy else None
 
-            token = await self.refresh_token(address, use_proxy, rotate_proxy, proxy)
-            if token:
-                self.access_tokens[address] = token["token"]
-                self.refresh_tokens[address] = token["refreshToken"]
+            while True:
+                token = await self.refresh_token(address, use_proxy, rotate_proxy, proxy)
+                if token:
+                    self.access_tokens[address] = token["token"]
+                    self.refresh_tokens[address] = token["refreshToken"]
 
-                self.print_message(address, proxy, Fore.GREEN, "Refreshing Token Success")
-                return True
+                    self.print_message(address, proxy, Fore.GREEN, "Refreshing Token Success")
+                    break
 
-            await asyncio.sleep(5)
-            continue
+                await asyncio.sleep(5)
+                continue
 
     async def process_add_whitelist(self, address: str, use_proxy: bool):
         proxy = self.get_next_proxy_for_account(address) if use_proxy else None
